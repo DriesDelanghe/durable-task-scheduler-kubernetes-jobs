@@ -1,0 +1,82 @@
+# Default values for durable-task-scheduler
+replicaCount: 1
+
+imageRegistry: ""
+imagePullPolicy: IfNotPresent
+
+# k8sController configuration
+k8sController:
+  image:
+    repository: k8s-controller
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# TaskScheduler configuration
+taskScheduler:
+  image:
+    repository: task-scheduler
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# ExampleWorker configuration
+exampleWorker:
+  image:
+    repository: example-worker
+    tag: latest
+
+# Kubernetes configuration (for jobs created by k8sController)
+kubernetes:
+  defaultNamespace: default
+  workerImage: example-worker:latest
+  workerImagePullPolicy: Never  # Use Never for local images
+
+# Service account for Kubernetes API access
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Durable Task Scheduler Emulator configuration
+dtsEmulator:
+  enabled: true
+  image:
+    repository: mcr.microsoft.com/dts/dts-emulator
+    tag: latest
+  service:
+    type: LoadBalancer  # Use LoadBalancer for external access
+    port: 8080          # Backend API port
+    dashboardPort: 8082 # Dashboard port
+  resources:
+    # limits:
+    #   cpu: 500m
+    #   memory: 512Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+# Durable Task Scheduler configuration
+durableTask:
+  hubName: "default"
+  connectionStringName: "DURABLE_TASK_SCHEDULER_CONNECTION_STRING"
+  # Connection string will be auto-generated if emulator is enabled
+  # Otherwise, provide a custom connection string
+  connectionString: ""
+

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "durable-task-scheduler.fullname" . }}-config
+  labels:
+    {{- include "durable-task-scheduler.labels" . | nindent 4 }}
+data:
+  Kubernetes__DefaultNamespace: {{ .Values.kubernetes.defaultNamespace | quote }}
+  Kubernetes__WorkerImage: {{ .Values.kubernetes.workerImage | quote }}
+  K8sController__BaseAddress: "http://{{ include "durable-task-scheduler.fullname" . }}-k8s-controller:{{ .Values.k8sController.service.port }}"
+  {{- if .Values.dtsEmulator.enabled }}
+  DtsEmulator__BaseAddress: "http://{{ include "durable-task-scheduler.fullname" . }}-dts-emulator:{{ .Values.dtsEmulator.service.port }}"
+  {{- end }}
+

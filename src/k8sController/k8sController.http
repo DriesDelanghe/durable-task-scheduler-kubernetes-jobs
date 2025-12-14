@@ -1,0 +1,42 @@
+@k8sController_HostAddress = http://localhost:5263
+
+### Create a new job
+POST {{k8sController_HostAddress}}/jobs
+Content-Type: application/json
+
+{
+}
+
+### Create a new job in a specific namespace
+POST {{k8sController_HostAddress}}/jobs
+Content-Type: application/json
+
+{
+    "namespace": "my-namespace"
+}
+
+### Get pods for a job (replace {jobName} with actual job name from create response)
+GET {{k8sController_HostAddress}}/jobs/{jobName}/pods
+Accept: application/json
+
+### Get pods for a job in a specific namespace
+GET {{k8sController_HostAddress}}/jobs/{jobName}/pods?ns=my-namespace
+Accept: application/json
+
+### Watch a pod's status via SSE (replace {podName} with actual pod name)
+GET {{k8sController_HostAddress}}/pods/{podName}/watch
+Accept: text/event-stream
+
+### Watch a pod in a specific namespace
+GET {{k8sController_HostAddress}}/pods/{podName}/watch?ns=my-namespace
+Accept: text/event-stream
+
+### Get logs from a pod (replace {podName} with actual pod name)
+GET {{k8sController_HostAddress}}/pods/{podName}/logs
+Accept: application/json
+
+### Get logs with options
+GET {{k8sController_HostAddress}}/pods/{podName}/logs?ns=my-namespace&tailLines=100
+Accept: application/json
+
+###

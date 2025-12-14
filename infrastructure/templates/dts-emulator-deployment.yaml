@@ -1,0 +1,48 @@
+{{- if .Values.dtsEmulator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "durable-task-scheduler.fullname" . }}-dts-emulator
+  labels:
+    {{- include "durable-task-scheduler.labels" . | nindent 4 }}
+    component: dts-emulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "durable-task-scheduler.selectorLabels" . | nindent 6 }}
+      component: dts-emulator
+  template:
+    metadata:
+      labels:
+        {{- include "durable-task-scheduler.selectorLabels" . | nindent 8 }}
+        component: dts-emulator
+    spec:
+      containers:
+      - name: dts-emulator
+        image: {{ .Values.dtsEmulator.image.repository }}:{{ .Values.dtsEmulator.image.tag }}
+        imagePullPolicy: IfNotPresent  # Always pull from registry (public Microsoft image)
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: dashboard
+          containerPort: 8081
+          protocol: TCP
+        env:
+        - name: TASKHUBS__0__NAME
+          value: {{ .Values.durableTask.hubName | quote }}
+        resources:
+          {{- toYaml .Values.dtsEmulator.resources | nindent 10 }}
+        # livenessProbe:
+        #   tcpSocket:
+        #     port: http
+        #   initialDelaySeconds: 10
+        #   periodSeconds: 10
+        # readinessProbe:
+        #   tcpSocket:
+        #     port: http
+        #   initialDelaySeconds: 5
+        #   periodSeconds: 5
+{{- end }}
+

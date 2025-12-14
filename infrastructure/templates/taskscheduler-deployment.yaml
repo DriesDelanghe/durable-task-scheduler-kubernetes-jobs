@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "durable-task-scheduler.fullname" . }}-task-scheduler
+  labels:
+    {{- include "durable-task-scheduler.labels" . | nindent 4 }}
+    component: task-scheduler
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "durable-task-scheduler.selectorLabels" . | nindent 6 }}
+      component: task-scheduler
+  template:
+    metadata:
+      labels:
+        {{- include "durable-task-scheduler.selectorLabels" . | nindent 8 }}
+        component: task-scheduler
+    spec:
+      containers:
+      - name: task-scheduler
+        image: {{ include "durable-task-scheduler.image" (dict "root" $ "image" .Values.taskScheduler.image) }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        env:
+        - name: AzureWebJobsScriptRoot
+          value: "/home/site/wwwroot"
+        - name: AzureFunctionsJobHost__Logging__Console__IsEnabled
+          value: "true"
+        - name: FUNCTIONS_WORKER_RUNTIME
+          value: "dotnet-isolated"
+        - name: AzureWebJobsSecretStorageType
+          value: "Files"
+        - name: WEBSITE_HOSTNAME
+          value: "{{ include "durable-task-scheduler.fullname" . }}-task-scheduler:{{ .Values.taskScheduler.service.port }}"
+        - name: TASKHUB_NAME
+          value: {{ .Values.durableTask.hubName | quote }}
+        - name: DURABLE_TASK_SCHEDULER_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "durable-task-scheduler.fullname" . }}-secrets
+              key: connectionString
+        - name: K8sController__BaseAddress
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "durable-task-scheduler.fullname" . }}-config
+              key: K8sController__BaseAddress
+        resources:
+          {{- toYaml .Values.taskScheduler.resources | nindent 10 }}
+        livenessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+

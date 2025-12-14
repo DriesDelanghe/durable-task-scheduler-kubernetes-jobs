@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "durable-task-scheduler.fullname" . }}-k8s-controller
+  labels:
+    {{- include "durable-task-scheduler.labels" . | nindent 4 }}
+    component: k8s-controller
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "durable-task-scheduler.selectorLabels" . | nindent 6 }}
+      component: k8s-controller
+  template:
+    metadata:
+      labels:
+        {{- include "durable-task-scheduler.selectorLabels" . | nindent 8 }}
+        component: k8s-controller
+    spec:
+      serviceAccountName: {{ include "durable-task-scheduler.fullname" . }}-sa
+      containers:
+      - name: k8s-controller
+        image: {{ include "durable-task-scheduler.image" (dict "root" $ "image" .Values.k8sController.image) }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080"
+        - name: Kubernetes__DefaultNamespace
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "durable-task-scheduler.fullname" . }}-config
+              key: Kubernetes__DefaultNamespace
+        - name: Kubernetes__WorkerImage
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "durable-task-scheduler.fullname" . }}-config
+              key: Kubernetes__WorkerImage
+        resources:
+          {{- toYaml .Values.k8sController.resources | nindent 10 }}
+        livenessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+

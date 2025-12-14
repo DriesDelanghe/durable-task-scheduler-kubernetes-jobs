@@ -1,0 +1,7 @@
+apiVersion: v2
+name: durable-task-scheduler
+description: A Helm chart for durable task scheduler with Kubernetes job orchestration
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
