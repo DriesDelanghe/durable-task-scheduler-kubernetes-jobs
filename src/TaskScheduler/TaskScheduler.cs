@@ -5,6 +5,7 @@ using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Common.Models;
+using System.Linq;
 
 namespace TaskScheduler;
 
@@ -15,16 +16,45 @@ public static class TaskScheduler
         [OrchestrationTrigger] TaskOrchestrationContext context)
     {
         ILogger logger = context.CreateReplaySafeLogger(nameof(TaskScheduler));
-        logger.LogInformation("Starting Kubernetes job orchestration");
+        logger.LogInformation("Starting Kubernetes job orchestration with fan-out/fan-in pattern");
 
-        // Call the activity to execute the Kubernetes job and get logs
-        var jobLogs = await context.CallActivityAsync<JobResult>(
-            nameof(ExecuteKubernetesJobWithResultActivity),
-            new CreateJobRequest());
-
-        logger.LogInformation("Kubernetes job completed. Result: {Summary}", jobLogs?.Summary ?? string.Empty);
+        const int numberOfJobs = 10;
         
-        return jobLogs?.Summary ?? string.Empty;
+        // Fan-out: Start all jobs in parallel
+        logger.LogInformation("Starting {Count} parallel Kubernetes jobs", numberOfJobs);
+        var tasks = new List<Task<JobResult>>();
+        
+        for (int i = 0; i < numberOfJobs; i++)
+        {
+            var jobNumber = i + 1;
+            logger.LogInformation("Queuing job {JobNumber}/{TotalJobs}", jobNumber, numberOfJobs);
+            
+            var task = context.CallActivityAsync<JobResult>(
+                nameof(ExecuteKubernetesJobWithResultActivity),
+                new CreateJobRequest());
+            
+            tasks.Add(task);
+        }
+
+        // Fan-in: Wait for all jobs to complete
+        logger.LogInformation("Waiting for all {Count} jobs to complete", numberOfJobs);
+        var results = await Task.WhenAll(tasks);
+
+        // Aggregate results
+        var totalTasks = results.Sum(r => r.TotalTasks);
+        var successfulTasks = results.Sum(r => r.SuccessfulTasks);
+        var failedTasks = results.Sum(r => r.FailedTasks);
+        
+        logger.LogInformation(
+            "All {Count} jobs completed. Total tasks: {TotalTasks}, Successful: {SuccessfulTasks}, Failed: {FailedTasks}",
+            numberOfJobs,
+            totalTasks,
+            successfulTasks,
+            failedTasks);
+
+        var summary = $"Completed {numberOfJobs} jobs: {totalTasks} total tasks ({successfulTasks} successful, {failedTasks} failed)";
+        
+        return summary;
     }
 
     [Function(nameof(ExecuteKubernetesJobWithResultActivity))]
