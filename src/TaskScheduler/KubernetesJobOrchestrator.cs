@@ -103,6 +103,23 @@ public class KubernetesJobOrchestrator
             podInfo.PodName,
             finalStatus.Phase);
 
+        // Check if the pod failed (exit code != 0)
+        if (finalStatus.Phase == "Failed")
+        {
+            _logger.LogError(
+                "Pod '{PodName}' for job '{JobName}' failed with phase '{Phase}'. Reason: {Reason}",
+                podInfo.PodName,
+                createResponse.JobName,
+                finalStatus.Phase,
+                finalStatus.Reason ?? "Unknown");
+            
+            throw new JobFailedException(
+                $"Kubernetes job '{createResponse.JobName}' failed. Pod '{podInfo.PodName}' exited with failure. Reason: {finalStatus.Reason ?? "Unknown"}",
+                createResponse.JobName,
+                podInfo.PodName,
+                finalStatus.Phase);
+        }
+
         // Step 4: Get the logs from the completed pod
         _logger.LogInformation(
             "Retrieving logs from pod '{PodName}'",
@@ -124,10 +141,12 @@ public class KubernetesJobOrchestrator
     /// <summary>
     /// Creates a Kubernetes job, waits for it to complete, extracts JSON output from logs, and returns a structured result.
     /// Uses SSE (Server-Sent Events) to watch the pod status until completion.
+    /// Throws JobFailedException if the job fails or any task has a "Failed" status.
     /// </summary>
     /// <param name="request">Optional request with namespace override.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The structured job result extracted from the logs.</returns>
+    /// <exception cref="JobFailedException">Thrown when the job fails or any task has "Failed" status.</exception>
     public async Task<JobResult> ExecuteJobAndGetResultAsync(
         CreateJobRequest? request = null,
         CancellationToken cancellationToken = default)
@@ -144,6 +163,24 @@ public class KubernetesJobOrchestrator
             result.TotalTasks,
             result.SuccessfulTasks,
             result.FailedTasks);
+
+        // Check if any task failed
+        if (result.FailedTasks > 0)
+        {
+            var failedTaskNames = result.TaskResults
+                .Where(t => t.Status == "Failed")
+                .Select(t => t.TaskName)
+                .ToList();
+            
+            _logger.LogError(
+                "Job completed but {FailedCount} task(s) failed: {FailedTasks}",
+                result.FailedTasks,
+                string.Join(", ", failedTaskNames));
+            
+            throw new JobFailedException(
+                $"Job completed but {result.FailedTasks} task(s) failed: {string.Join(", ", failedTaskNames)}",
+                result);
+        }
         
         return result;
     }

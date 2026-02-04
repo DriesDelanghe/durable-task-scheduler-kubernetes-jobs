@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Common.Models;
 using System.Linq;
+using TaskScheduler.Models;
 
 namespace TaskScheduler;
 
@@ -13,12 +14,15 @@ public static class TaskScheduler
 {
     [Function(nameof(TaskScheduler))]
     public static async Task<string> RunOrchestrator(
-        [OrchestrationTrigger] TaskOrchestrationContext context)
+        [OrchestrationTrigger] TaskOrchestrationContext context,
+        OrchestratorOptions options)
     {
         ILogger logger = context.CreateReplaySafeLogger(nameof(TaskScheduler));
         logger.LogInformation("Starting Kubernetes job orchestration with fan-out/fan-in pattern");
 
-        const int numberOfJobs = 10;
+        var numberOfJobs = options.NumberOfJobs;
+        
+        var random = new Random();
         
         // Fan-out: Start all jobs in parallel
         logger.LogInformation("Starting {Count} parallel Kubernetes jobs", numberOfJobs);
@@ -26,12 +30,22 @@ public static class TaskScheduler
         
         for (int i = 0; i < numberOfJobs; i++)
         {
+            var forceFailure = false;
+
+            if (options.ForceFailure)
+            {
+                forceFailure = random.Next(0, 100) <= options.ForcedFailureWeight * 100;
+            }
+
             var jobNumber = i + 1;
             logger.LogInformation("Queuing job {JobNumber}/{TotalJobs}", jobNumber, numberOfJobs);
             
             var task = context.CallActivityAsync<JobResult>(
                 nameof(ExecuteKubernetesJobWithResultActivity),
-                new CreateJobRequest());
+                new CreateJobRequest()
+                {
+                    ForceFailure = forceFailure
+                }); 
             
             tasks.Add(task);
         }
@@ -70,7 +84,7 @@ public static class TaskScheduler
         
         logger.LogInformation("Executing Kubernetes job activity with structured result");
         
-        var result = await orchestrator.ExecuteJobAndGetResultAsync(new CreateJobRequest());
+        var result = await orchestrator.ExecuteJobAndGetResultAsync(request);
         
         logger.LogInformation(
             "Kubernetes job activity completed. Result: {Summary}",

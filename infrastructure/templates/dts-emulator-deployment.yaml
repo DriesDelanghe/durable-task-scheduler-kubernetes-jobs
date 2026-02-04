@@ -27,7 +27,7 @@ spec:
           containerPort: 8080
           protocol: TCP
         - name: dashboard
-          containerPort: 8081
+          containerPort: 8082
           protocol: TCP
         env:
         - name: TASKHUBS__0__NAME

@@ -1,7 +1,7 @@
 .PHONY: help build deploy undeploy status logs clean
 
 # Configuration
-NAMESPACE ?= default
+NAMESPACE ?= dts-poc
 RELEASE_NAME ?= durable-task-scheduler
 IMAGE_TAG ?= latest
 

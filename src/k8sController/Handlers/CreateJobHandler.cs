@@ -57,7 +57,15 @@ public static class CreateJobHandler
                             {
                                 Name = "worker",
                                 Image = workerImage,
-                                ImagePullPolicy = "IfNotPresent"
+                                ImagePullPolicy = "IfNotPresent",
+                                Env = new List<V1EnvVar>
+                                {
+                                    new V1EnvVar
+                                    {
+                                        Name = "FORCE_FAILURE",
+                                        Value = request?.ForceFailure.ToString() ?? "false"
+                                    }
+                                }
                             }
                         }
                     }

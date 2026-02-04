@@ -8,6 +8,8 @@ var startTime = DateTime.UtcNow;
 Console.WriteLine("Starting ExampleWorker...");
 Console.WriteLine($"Worker started at: {startTime:O}");
 
+var forceFailure = Environment.GetEnvironmentVariable("FORCE_FAILURE") == "true";
+
 // Randomize number of tasks (between 3 and 10)
 var numberOfTasks = random.Next(3, 11);
 var tasks = Enumerable.Range(1, numberOfTasks)
@@ -31,7 +33,7 @@ for (int i = 0; i < tasks.Count; i++)
     await Task.Delay(TimeSpan.FromMilliseconds(durationMs));
     
     // Randomize success/failure (90% success rate)
-    var isSuccess = random.Next(0, 100) < 90;
+    var isSuccess = forceFailure ? false : random.Next(0, 100) < 90;
     var status = isSuccess ? "Completed" : "Failed";
     var message = isSuccess ? "completed successfully" : "failed with error";
     
@@ -82,6 +84,22 @@ Console.WriteLine(jsonOutput);
 Console.WriteLine("=== JSON_OUTPUT_END ===");
 
 Console.WriteLine("ExampleWorker finished.");
+
+if (forceFailure)
+{
+    Console.WriteLine("Force failure is enabled. Exiting with error code 1.");
+    Environment.Exit(1);
+}
+else if (failedTasks > 0)
+{
+    Console.WriteLine("Failed tasks are present. Exiting with error code 1.");
+    Environment.Exit(1);
+}
+else
+{
+    Console.WriteLine("All tasks completed successfully. Exiting with error code 0.");
+    Environment.Exit(0);
+}
 
 // Models
 public class TaskResult
